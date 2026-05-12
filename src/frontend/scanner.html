@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pentagon Lobby Kiosk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>@keyframes scan { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } } .animate-scan { animation: scan 2s linear infinite; }</style>
+    <script>tailwind.config = { theme: { extend: { colors: { corporate: { navy: '#1E3A8A', bg: '#111827' } } } } }</script>
+</head>
+<body class="bg-corporate-bg min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border-t-8 border-corporate-navy">
+        <div class="bg-gray-100 p-6 text-center border-b">
+            <h1 class="text-2xl font-bold text-corporate-navy tracking-wide">BIOMETRIC TERMINAL</h1>
+            <p class="text-gray-500 text-sm uppercase tracking-widest mt-1">Lobby Station 01</p>
+        </div>
+
+        <div class="p-8 text-center" id="inputPhase">
+            <h3 class="font-bold text-gray-700 mb-4">Enter Employee ID to Begin</h3>
+            <input type="text" id="kioskId" placeholder="e.g. EMP-01" class="w-full p-4 border-2 border-gray-300 rounded text-center text-xl font-mono uppercase tracking-widest mb-4">
+            <button onclick="startKioskScan()" class="w-full bg-corporate-navy hover:bg-blue-900 text-white font-bold py-4 rounded text-lg transition-colors"><i class="fa-solid fa-camera mr-2"></i> INITIATE SCAN</button>
+        </div>
+
+        <div class="p-8 text-center hidden" id="scanPhase">
+            <div class="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-8 border-blue-200 bg-black">
+                <video id="kioskCam" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+                <div id="kioskScanLine" class="absolute left-0 w-full h-1 bg-green-400 shadow-[0_0_15px_#4ade80] animate-scan hidden"></div>
+            </div>
+            <div id="kioskStatus" class="mt-6 p-4 rounded font-bold text-blue-700 bg-blue-100 text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        async function startKioskScan() {
+            const id = document.getElementById('kioskId').value.toUpperCase();
+            if(!id) return alert("Please enter ID.");
+
+            document.getElementById('inputPhase').classList.add('hidden');
+            document.getElementById('scanPhase').classList.remove('hidden');
+            
+            const video = document.getElementById('kioskCam');
+            const statusBox = document.getElementById('kioskStatus');
+            const scanLine = document.getElementById('kioskScanLine');
+
+            statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Booting AI Models...';
+
+            try {
+                await Promise.all([
+                    faceapi.nets.ssdMobilenetv1.loadFromUri('./models'),
+                    faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
+                    faceapi.nets.faceRecognitionNet.loadFromUri('./models')
+                ]);
+
+                statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching Profile...';
+                
+                let referenceImage;
+                try { referenceImage = await faceapi.fetchImage(`./assets/faces/${id}.jpg`); } 
+                catch (e) { throw new Error(`ID ${id} not enrolled in Biometrics.`); }
+
+                const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
+                if (!referenceDetection) throw new Error("Invalid reference photo.");
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+                
+                video.onplaying = async () => {
+                    scanLine.classList.remove('hidden');
+                    statusBox.innerHTML = 'Mapping facial topology... Hold still.';
+                    
+                    setTimeout(async () => {
+                        statusBox.innerHTML = 'Verifying...';
+                        const liveDetection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+
+                        if (!liveDetection) { throw new Error("No face detected."); }
+
+                        const distance = faceapi.euclideanDistance(referenceDetection.descriptor, liveDetection.descriptor);
+                        if (distance < 0.6) {
+                            const res = await fetch('http://localhost:5000/api/clock-in', {
+                                method: 'POST', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ id: id, timestamp: new Date().toISOString(), location: "Lobby Kiosk" })
+                            });
+                            const result = await res.json();
+                            if (result.success) {
+                                scanLine.classList.add('hidden');
+                                statusBox.className = 'mt-6 p-4 rounded font-bold text-green-800 bg-green-100 text-sm border border-green-300';
+                                statusBox.innerHTML = `✅ VERIFIED: ${result.name}<br>${result.status} Logged.`;
+                                setTimeout(() => window.location.reload(), 4000);
+                            } else {
+                                throw new Error(result.message);
+                            }
+                        } else { throw new Error("Face Mismatch. Access Denied."); }
+                    }, 2000);
+                };
+            } catch (err) {
+                scanLine.classList.add('hidden');
+                statusBox.className = 'mt-6 p-4 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
+                statusBox.innerHTML = `❌ ${err.message}`;
+                setTimeout(() => window.location.reload(), 4000);
+            }
+        }
+    </script>
+</body>
+</html>

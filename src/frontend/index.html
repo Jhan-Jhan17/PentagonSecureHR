@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentagon SecureHR | User Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    
+    <style>
+        @keyframes scan { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .animate-scan { animation: scan 2s linear infinite; }
+    </style>
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Arial', 'sans-serif'] }, colors: { corporate: { navy: '#1E3A8A', bg: '#F3F4F6', panel: '#FFFFFF', border: '#D1D5DB', button: '#2563EB', buttonHover: '#1D4ED8', textDark: '#1F2937', textMuted: '#6B7280' } } } } }
+    </script>
+</head>
+<body class="bg-corporate-bg text-corporate-textDark font-sans h-screen flex overflow-hidden">
+
+    <div id="faceModal" class="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden text-center border-t-4 border-t-corporate-navy">
+            <div class="bg-corporate-navy p-3 flex justify-between items-center text-white">
+                <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-face-viewfinder mr-2"></i> Biometric Authentication</h3>
+                <button onclick="closeFaceModal()" class="text-white hover:text-red-400"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 relative">
+                <p class="text-sm text-gray-500 mb-6">Please look directly at the camera to verify your identity.</p>
+                <div class="relative w-56 h-56 mx-auto rounded-full overflow-hidden border-4 border-blue-200 shadow-inner bg-gray-900">
+                    <video id="webcam" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+                    <div id="scanLine" class="absolute left-0 w-full h-1 bg-green-400 shadow-[0_0_15px_#4ade80] animate-scan hidden"></div>
+                </div>
+                <div id="faceStatusBox" class="mt-8 p-3 rounded font-bold text-blue-700 bg-blue-100 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <aside class="w-64 bg-corporate-navy flex flex-col justify-between shadow-xl z-20">
+        <div>
+            <div class="h-20 flex flex-col items-center justify-center border-b border-blue-800 py-12">
+                <img src="assets/img/pentagon.png" alt="Logo" class="h-12 mb-2 drop-shadow-md">
+                <h1 class="text-white text-md font-bold tracking-wide">PENTAGON</h1>
+                <p class="text-blue-200 text-[10px] tracking-widest uppercase">SecureHR</p>
+            </div>
+            <div class="p-6">
+                <p class="text-blue-200 text-xs font-bold uppercase mb-4 tracking-wider">System Status</p>
+                <div class="space-y-4 text-white text-sm">
+                    <p><i class="fa-solid fa-circle-check text-green-400 mr-2"></i> System Online</p>
+                    <p><i class="fa-solid fa-shield-halved text-blue-400 mr-2"></i> Connection Secure</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t border-blue-800">
+            <button onclick="secureLogout()" class="w-full text-left flex items-center justify-center text-blue-200 hover:text-white text-sm transition-colors">
+                <i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Secure Logout
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="h-16 bg-corporate-panel border-b border-corporate-border flex items-center justify-between px-8 shadow-sm">
+            <div class="text-lg font-bold text-corporate-navy tracking-wide uppercase" id="viewTitle">DASHBOARD</div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="display-name text-sm font-bold text-corporate-textDark"></p>
+                    <p class="display-id text-xs text-corporate-textMuted font-mono"></p>
+                </div>
+                <div class="display-initials w-10 h-10 bg-corporate-navy flex items-center justify-center text-white font-bold text-sm rounded"></div>
+            </div>
+        </header>
+
+        <nav id="employee-tabs" class="bg-corporate-panel border-b border-corporate-border flex px-8 gap-8 overflow-x-auto shadow-sm z-10 hidden">
+            <button onclick="switchView('dashboard', 'Dashboard')" class="tab-btn py-4 text-sm font-bold text-corporate-navy border-b-4 border-corporate-navy whitespace-nowrap" id="btn-dashboard">Dashboard</button>
+            <button onclick="switchView('time', 'Timekeeping & DTR')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-time">Timekeeping & DTR</button>
+            <button onclick="switchView('leaves', 'Leaves & Overtime')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-leaves">Leaves & Overtime</button>
+            <button onclick="switchView('payroll', 'Payroll & Benefits')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-payroll">Payroll & Benefits</button>
+            <button onclick="switchView('profile', 'My Profile & Documents')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-profile">My Profile & Documents</button>
+        </nav>
+
+        <nav id="applicant-tabs" class="bg-corporate-panel border-b border-corporate-border flex px-8 gap-8 overflow-x-auto shadow-sm z-10 hidden">
+            <button onclick="switchView('applicant-dash', 'Careers Board')" class="tab-btn py-4 text-sm font-bold text-corporate-navy border-b-4 border-corporate-navy whitespace-nowrap" id="btn-applicant-dash">Careers Board</button>
+        </nav>
+
+        <div class="flex-1 overflow-y-auto p-8 relative">
+            
+            <div id="view-dashboard" class="view-section">
+                <div class="bg-corporate-panel p-8 border rounded shadow-sm flex flex-col max-w-md mx-auto mt-8">
+                    <h3 class="text-corporate-navy text-sm font-bold mb-4 uppercase border-b pb-2 text-center">
+                        <i class="fa-solid fa-fingerprint mr-2"></i> Attendance Scanner
+                    </h3>
+                    
+                    <div class="bg-gray-50 border rounded p-4 mb-6 text-center shadow-inner">
+                        <p id="attStatusText" class="text-sm font-bold text-corporate-textDark">Status: <span class="text-green-600">Camera Ready</span></p>
+                    </div>
+                    
+                    <button id="clockInBtn" class="w-full bg-corporate-button hover:bg-corporate-buttonHover text-white py-4 font-bold text-sm rounded shadow transition-colors mt-auto">
+                        <i class="fa-solid fa-face-viewfinder mr-2"></i> FACE RECOGNITION CLOCK-IN
+                    </button>
+                </div>
+            </div>
+
+            <div id="view-time" class="view-section hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-corporate-panel border rounded shadow-sm">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
+                        <h3 class="font-bold text-sm uppercase">My DTR Log</h3>
+                        <button onclick="fetchEmployeeDTR()" class="text-xs font-bold text-blue-600 hover:underline">Refresh Logs</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase"><tr><th class="px-6 py-2">Date</th><th class="px-6 py-2">Time</th><th class="px-6 py-2">Status</th></tr></thead>
+                        <tbody id="empDtrTable">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm h-fit">
+                    <h3 class="font-bold text-sm uppercase mb-4 border-b pb-2">Request Overtime</h3>
+                    <form onsubmit="submitOvertime(event)" class="space-y-4">
+                        <div><label class="text-xs text-gray-500">Date</label><input type="date" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500">Hours Requested</label><input type="number" min="1" max="8" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500">Reason / Task</label><textarea required class="w-full p-2 border text-sm mt-1"></textarea></div>
+                        <button type="submit" class="w-full bg-corporate-button text-white font-bold py-2 rounded text-sm">Submit Request</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="view-leaves" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm">
+                    <h3 class="text-corporate-navy text-sm font-bold mb-4 uppercase border-b pb-2"><i class="fa-solid fa-plane-departure mr-2"></i> File A Leave</h3>
+                    
+                    <form onsubmit="submitLeave(event)" class="space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-500">Leave Type</label>
+                            <select id="leaveType" class="w-full p-2 border text-sm mt-1">
+                                <option value="Vacation Leave (VL)">Vacation Leave (VL)</option>
+                                <option value="Sick Leave (SL)">Sick Leave (SL)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">Duration</label>
+                            <select id="leaveDuration" class="w-full p-2 border text-sm mt-1">
+                                <option value="1">1 Day</option>
+                                <option value="2">2 Days</option>
+                                <option value="3">3 Days</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-corporate-button hover:bg-corporate-buttonHover text-white py-2 font-bold text-sm rounded mt-2 transition-colors">Submit Leave</button>
+                    </form>
+                    
+                </div>
+                <div class="bg-corporate-panel border rounded shadow-sm h-fit">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase">My Request History</h3>
+                        <button onclick="fetchEmployeeLeaves()" class="text-xs font-bold text-blue-600 hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase"><tr><th class="px-4 py-2">Type</th><th class="px-4 py-2">Date</th><th class="px-4 py-2 text-right">Status</th></tr></thead>
+                        <tbody id="empLeaveTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-payroll" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-corporate-panel border rounded shadow-sm h-fit">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-file-invoice-dollar mr-2"></i> Payslip Gallery</h3>
+                        <button onclick="fetchEmployeePayslips()" class="text-xs font-bold text-blue-600 hover:underline">Refresh</button>
+                    </div>
+                    <div class="p-4 space-y-3" id="empPayslipGallery">
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-profile" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm h-fit">
+                    <h3 class="font-bold text-corporate-textDark mb-4 border-b pb-2"><i class="fa-solid fa-address-card mr-2 text-corporate-navy"></i> Official Records</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><label class="block text-gray-500 text-xs uppercase mb-1">Full Name</label><input id="profName" disabled class="w-full bg-gray-100 p-2 border font-bold"></div>
+                        <div><label class="block text-gray-500 text-xs uppercase mb-1">Employee ID</label><input id="profId" disabled class="w-full bg-gray-100 p-2 border font-bold"></div>
+                        <div><label class="block text-gray-500 text-xs uppercase mb-1">Department</label><input id="profDept" disabled class="w-full bg-gray-100 p-2 border font-bold"></div>
+                        <div><label class="block text-gray-500 text-xs uppercase mb-1">Role</label><input id="profRole" disabled class="w-full bg-gray-100 p-2 border font-bold"></div>
+                    </div>
+                </div>
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm h-fit">
+                    <h3 class="font-bold text-corporate-textDark mb-4 border-b pb-2"><i class="fa-solid fa-folder-open mr-2 text-corporate-navy"></i> Document Vault</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-gray-50 p-3 border rounded">
+                            <span class="text-sm font-bold text-gray-700">PRC License</span>
+                            <button id="btn-PRC" onclick="triggerUpload('PRC')" class="text-xs bg-corporate-button text-white px-3 py-1 rounded font-bold">UPLOAD</button>
+                        </div>
+                        <div class="flex items-center justify-between bg-gray-50 p-3 border rounded">
+                            <span class="text-sm font-bold text-gray-700">NBI Clearance</span>
+                            <button id="btn-NBI" onclick="triggerUpload('NBI')" class="text-xs bg-corporate-button text-white px-3 py-1 rounded font-bold">UPLOAD</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-applicant-dash" class="view-section hidden max-w-2xl mx-auto">
+                <div class="bg-corporate-panel p-8 border rounded shadow-sm">
+                    <h2 class="text-2xl font-bold text-corporate-navy mb-2"><i class="fa-solid fa-briefcase mr-2"></i> Join Our Team</h2>
+                    <p class="text-sm text-gray-500 mb-6 border-b pb-4">Submit your application securely to Pentagon's Recruitment Department.</p>
+                    
+                    <form onsubmit="submitApplication(event)" class="space-y-4">
+                        <div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="appName" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs font-bold text-gray-500 uppercase">Email Address</label><input type="email" id="appEmail" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs font-bold text-gray-500 uppercase">Select Role</label>
+                            <select id="appRole" class="w-full p-2 border text-sm mt-1">
+                                <option>Software Engineer</option><option>HR Assistant</option><option>IT Technician</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 border rounded mt-4">
+                            <label class="text-xs font-bold text-gray-700 uppercase"><i class="fa-solid fa-file-pdf text-red-500 mr-1"></i> Upload Resume (PDF)</label>
+                            <input type="file" id="appResume" required accept=".pdf" class="w-full text-sm mt-2">
+                        </div>
+
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded mt-4 transition-colors text-lg">SUBMIT APPLICATION</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <script src="js/app.js"></script>
+</body>
+</html>

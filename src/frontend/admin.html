@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentagon SecureHR | Admin Command</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Arial', 'sans-serif'] }, colors: { corporate: { navy: '#1E3A8A', bg: '#F3F4F6', panel: '#FFFFFF', border: '#D1D5DB', button: '#2563EB', buttonHover: '#1D4ED8', textDark: '#1F2937', textMuted: '#6B7280' } } } } }
+    </script>
+</head>
+<body class="bg-corporate-bg text-corporate-textDark font-sans h-screen flex overflow-hidden">
+
+    <aside class="w-64 bg-corporate-navy flex flex-col justify-between shadow-md z-10">
+        <div>
+            <div class="h-20 flex flex-col items-center justify-center border-b border-blue-800 py-12">
+                <img src="assets/img/pentagon.png" alt="Logo" class="h-12 mb-2 drop-shadow-md">
+                <h1 class="text-white text-md font-bold tracking-wide">PENTAGON</h1>
+                <p class="text-blue-200 text-[10px] tracking-widest uppercase">Admin Command</p>
+            </div>
+            <div class="p-6">
+                <p class="text-blue-200 text-xs font-bold uppercase mb-4 tracking-wider">Admin Authority</p>
+                <div class="space-y-4 text-white text-sm">
+                    <p><i class="fa-solid fa-server text-green-400 mr-2"></i> Database Connected</p>
+                    <p><i class="fa-solid fa-shield text-blue-400 mr-2"></i> Read/Write Access</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t border-blue-800">
+            <button onclick="secureLogout()" class="w-full flex items-center justify-center text-blue-200 hover:text-white text-sm transition-colors"><i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Secure Logout</button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="h-16 bg-corporate-panel border-b border-corporate-border flex items-center justify-between px-8 shadow-sm">
+            <div class="text-lg font-bold text-corporate-navy tracking-wide uppercase" id="viewTitle">WORKFORCE MANAGEMENT</div>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="display-name text-sm font-bold text-corporate-textDark"></p>
+                    <p class="text-xs text-corporate-textMuted">HR Administrator</p>
+                </div>
+                <div class="display-initials w-10 h-10 bg-yellow-500 flex items-center justify-center text-white font-bold text-sm rounded"></div>
+            </div>
+        </header>
+
+        <nav class="bg-corporate-panel border-b border-corporate-border flex px-8 gap-6 overflow-x-auto shadow-sm z-10">
+            <button onclick="switchView('dashboard', 'Overview')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-dashboard">Overview</button>
+            <button onclick="switchView('directory', 'Workforce Management')" class="tab-btn py-4 text-sm font-bold text-corporate-navy border-b-4 border-corporate-navy whitespace-nowrap" id="btn-directory">Workforce Management</button>
+            <button onclick="switchView('att', 'Leaves & Attendance')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-att">Leaves & Attendance</button>
+            <button onclick="switchView('payroll', 'Payroll & Contributions')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-payroll">Payroll & Contributions</button>
+            <button onclick="switchView('rec', 'Recruitment & Onboarding')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-rec">Recruitment & Onboarding</button>
+            <button onclick="switchView('sec', 'System Security')" class="tab-btn py-4 text-sm font-bold text-gray-500 hover:text-corporate-navy border-b-4 border-transparent whitespace-nowrap" id="btn-sec">System Security</button>
+        </nav>
+
+        <div class="flex-1 overflow-y-auto p-8 relative">
+            
+            <div id="view-dashboard" class="view-section hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm border-t-4 border-t-corporate-navy">
+                    <p class="text-xs font-bold text-corporate-textMuted uppercase">Total Workforce</p>
+                    <p id="totalWorkforceCount" class="text-3xl font-bold text-corporate-textDark mt-2"><i class="fa-solid fa-spinner fa-spin text-lg"></i></p>
+                </div>
+
+                <div class="md:col-span-2 lg:col-span-3 bg-corporate-panel border rounded shadow-sm">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase text-red-600"><i class="fa-solid fa-headset mr-2"></i> IT Support & Passwords</h3>
+                        <button onclick="fetchTickets()" class="text-xs text-blue-600 font-bold hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase"><tr><th class="px-4 py-2">Type</th><th class="px-4 py-2">Details</th><th class="px-4 py-2 text-right">Action</th></tr></thead>
+                        <tbody id="ticketTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-directory" class="view-section grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-corporate-panel p-6 border rounded shadow-sm h-fit">
+                    <h3 class="font-bold mb-4 border-b pb-2"><i class="fa-solid fa-user-plus mr-2"></i> Onboard New Hire</h3>
+                    <form id="addEmpForm" onsubmit="addUser(event)" class="space-y-4">
+                        <div><label class="text-xs text-gray-500 font-bold uppercase">Full Name</label><input type="text" id="newEmpName" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500 font-bold uppercase">ID Number</label><input type="text" id="newEmpId" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500 font-bold uppercase">Department</label><input type="text" id="newEmpDept" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500 font-bold uppercase">Initial Password</label><input type="text" id="newEmpPass" placeholder="e.g., pentagon2026" required class="w-full p-2 border text-sm mt-1"></div>
+                        <div><label class="text-xs text-gray-500 font-bold uppercase">System Role</label>
+                            <select id="newEmpRole" class="w-full p-2 border text-sm mt-1">
+                                <option value="employee">Standard Employee</option>
+                                <option value="admin">HR Admin</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded mt-2 transition-colors">Create Account</button>
+                    </form>
+                </div>
+                <div class="lg:col-span-2 bg-corporate-panel border rounded shadow-sm">
+                    <div class="px-6 py-4 bg-gray-50 border-b"><h3 class="font-bold text-sm uppercase">Active Personnel Database</h3></div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase"><tr><th class="px-4 py-2">ID</th><th class="px-4 py-2">Name</th><th class="px-4 py-2">Role</th><th class="px-4 py-2 text-right">Action</th></tr></thead>
+                        <tbody id="directoryTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-att" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-corporate-panel border rounded shadow-sm h-fit">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase">Live Audit Trail</h3>
+                        <button onclick="fetchAdminLogs()" class="text-xs text-blue-600 font-bold hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left"><tbody id="auditTrail"></tbody></table>
+                </div>
+                <div class="bg-corporate-panel border rounded shadow-sm h-fit">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-bell text-yellow-500 mr-2"></i> Pending Leaves</h3>
+                        <button onclick="fetchPendingLeaves()" class="text-xs text-blue-600 font-bold hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left"><tbody id="leaveQueue"></tbody></table>
+                </div>
+            </div>
+
+            <div id="view-payroll" class="view-section hidden">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-corporate-navy">Master Payroll Engine</h2>
+                        <p class="text-sm text-corporate-textMuted">Manage and execute company-wide salary disbursements.</p>
+                    </div>
+                    <button id="executePayrollBtn" onclick="executePayroll()" class="bg-corporate-button hover:bg-corporate-buttonHover text-white px-6 py-3 rounded text-sm font-bold shadow-md transition-colors">
+                        <i class="fa-solid fa-play mr-2"></i> EXECUTE CURRENT PAYROLL
+                    </button>
+                </div>
+                <div class="bg-corporate-panel border rounded shadow-sm max-w-4xl">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase">Historical Disbursement Ledger</h3>
+                        <button onclick="fetchPayrollHistory()" class="text-xs text-blue-600 font-bold hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase">
+                            <tr><th class="px-4 py-2">Payroll Period</th><th class="px-4 py-2">Total Disbursed (PHP)</th><th class="px-4 py-2">Processed By</th><th class="px-4 py-2 text-right">Status</th></tr>
+                        </thead>
+                        <tbody id="payrollTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-rec" class="view-section hidden">
+                <div class="bg-corporate-panel border rounded shadow-sm h-fit max-w-4xl">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <h3 class="font-bold text-sm uppercase">Applicant Tracking (ATS)</h3>
+                        <button onclick="fetchApplicants()" class="text-xs font-bold text-blue-600 hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase"><tr><th class="px-4 py-2">Applicant Name</th><th class="px-4 py-2">Role Applied</th><th class="px-4 py-2">Email</th><th class="px-4 py-2">Date</th><th class="px-4 py-2 text-right">Resume</th></tr></thead>
+                        <tbody id="atsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-sec" class="view-section hidden">
+                <div class="bg-corporate-panel border rounded shadow-sm max-w-4xl">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <div>
+                            <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-fingerprint mr-2"></i> Biometric Data Enrollment</h3>
+                            <p class="text-xs text-gray-500 mt-1">Review active employees registered for facial recognition sign-in at the terminal.</p>
+                        </div>
+                        <button onclick="fetchBiometricEmployees()" class="text-xs font-bold text-blue-600 hover:underline">Refresh List</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase">
+                            <tr><th class="px-4 py-2">Emp ID</th><th class="px-4 py-2">Employee Name</th><th class="px-4 py-2 text-right">Verification Status</th></tr>
+                        </thead>
+                        <tbody id="biometricTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
