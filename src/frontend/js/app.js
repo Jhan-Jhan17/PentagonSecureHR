@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetBtn.onclick = async () => {
             localStorage.removeItem(`attendance_${user.id}_${today}`);
             try {
-                await fetch('http://localhost:5000/api/dev/reset', {
+                await fetch('/api/dev/reset', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id: user.id })
                 });
@@ -118,7 +118,7 @@ window.fetchWorkforceCount = async function() {
     const countEl = document.getElementById('totalWorkforceCount');
     if(!countEl) return;
     try {
-        const res = await fetch('http://localhost:5000/api/admin/stats/workforce');
+        const res = await fetch('/api/admin/stats/workforce');
         const result = await res.json();
         if(result.success) countEl.textContent = result.count;
     } catch(e) {
@@ -132,7 +132,7 @@ window.fetchEmployeeDTR = async function() {
     const tbody = document.getElementById('empDtrTable');
     if(!tbody) return;
     
-    const res = await fetch(`http://localhost:5000/api/employee/dtr/${user.id}`);
+    const res = await fetch(`/api/employee/dtr/${user.id}`);
     const result = await res.json();
     tbody.innerHTML = '';
     if(result.data.length === 0) return tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-500">No attendance records found.</td></tr>';
@@ -150,7 +150,7 @@ window.fetchEmployeeLeaves = async function() {
     const tbody = document.getElementById('empLeaveTable');
     if(!tbody) return;
     
-    const res = await fetch(`http://localhost:5000/api/employee/leaves/${user.id}`);
+    const res = await fetch(`/api/employee/leaves/${user.id}`);
     const result = await res.json();
     tbody.innerHTML = '';
     if(result.data.length === 0) return tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-500">No leave requests found.</td></tr>';
@@ -165,7 +165,7 @@ window.fetchEmployeePayslips = async function() {
     const container = document.getElementById('empPayslipGallery');
     if(!container) return;
     
-    const res = await fetch(`http://localhost:5000/api/admin/payroll`);
+    const res = await fetch(`/api/admin/payroll`);
     const result = await res.json();
     container.innerHTML = '';
     if(result.data.length === 0) return container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No payslips generated yet.</p>';
@@ -229,7 +229,7 @@ window.startFaceScan = async function(user) {
 
                 if (distance < threshold) {
                     try {
-                        const res = await fetch('http://localhost:5000/api/clock-in', {
+                        const res = await fetch('/api/clock-in', {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ id: user.id, timestamp: new Date().toISOString(), location: "Biometric Kiosk" })
                         });
@@ -305,7 +305,7 @@ window.triggerUpload = function(docType) {
         if(!file) return;
         const user = JSON.parse(localStorage.getItem('pentagonUser'));
         document.getElementById(`btn-${docType}`).innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        await fetch('http://localhost:5000/api/upload', {
+        await fetch('/api/upload', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ user_id: user.id, doc_type: docType, filename: file.name })
         });
@@ -315,7 +315,7 @@ window.triggerUpload = function(docType) {
 };
 
 window.loadUserDocuments = async function(userId) {
-    const res = await fetch(`http://localhost:5000/api/documents/${userId}`);
+    const res = await fetch(`/api/documents/${userId}`);
     const result = await res.json();
     if(result.success) {
         result.data.forEach(doc => {
@@ -357,7 +357,7 @@ window.printPayslip = function(month) {
 
 window.fetchAdminLogs = async function() {
     const tbody = document.getElementById('auditTrail');
-    const res = await fetch('http://localhost:5000/api/admin/logs');
+    const res = await fetch('/api/admin/logs');
     const result = await res.json();
     if(tbody) {
         tbody.innerHTML = '';
@@ -371,7 +371,7 @@ window.fetchAdminLogs = async function() {
 window.fetchPendingLeaves = async function() {
     const tbody = document.getElementById('leaveQueue');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/leaves');
+    const res = await fetch('/api/admin/leaves');
     const result = await res.json();
     tbody.innerHTML = '';
     if(result.data.length === 0) tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-500">No pending requests.</td></tr>';
@@ -381,7 +381,7 @@ window.fetchPendingLeaves = async function() {
 };
 
 window.reviewLeave = async function(id, action) {
-    await fetch('http://localhost:5000/api/admin/leaves/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ leave_id: id, action }) });
+    await fetch('/api/admin/leaves/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ leave_id: id, action }) });
     document.getElementById(`leave-${id}`).remove();
     if(document.getElementById('leaveQueue').children.length === 0) fetchPendingLeaves();
 };
@@ -394,15 +394,15 @@ window.submitLeave = async function(e) {
     const leaveDays = document.getElementById('leaveDuration').value;
 
     try {
-        const res = await fetch('http://localhost:5000/api/leave', {
+        const res = await fetch('/api/leave', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ user_id: user.id, type: leaveType, days: leaveDays })
         });
         const result = await res.json();
         if(result.success) {
             alert(`✅ SUCCESS: Your request for ${leaveDays} day(s) of ${leaveType} has been submitted securely to HR.`);
-            e.target.reset();           
-            fetchEmployeeLeaves();      
+            e.target.reset();
+            fetchEmployeeLeaves();
         } else { alert("Database Error: Could not submit leave."); }
     } catch(err) { alert("Server Offline: Could not reach HR database."); }
 };
@@ -410,7 +410,7 @@ window.submitLeave = async function(e) {
 window.fetchDirectory = async function() {
     const tbody = document.getElementById('directoryTable');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/users');
+    const res = await fetch('/api/admin/users');
     const result = await res.json();
     tbody.innerHTML = '';
     result.data.forEach(u => {
@@ -421,7 +421,7 @@ window.fetchDirectory = async function() {
 window.addUser = async function(e) {
     e.preventDefault();
     const data = { id: document.getElementById('newEmpId').value, name: document.getElementById('newEmpName').value, role: document.getElementById('newEmpRole').value, department: document.getElementById('newEmpDept').value, password: document.getElementById('newEmpPass').value || 'password123' };
-    await fetch('http://localhost:5000/api/admin/users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    await fetch('/api/admin/users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     document.getElementById('addEmpForm').reset();
     fetchDirectory();
     if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); // Update dynamic counter
@@ -430,7 +430,7 @@ window.addUser = async function(e) {
 
 window.deleteUser = async function(id) {
     if(confirm(`WARNING: Terminate ID: ${id}?`)) {
-        await fetch(`http://localhost:5000/api/admin/users/${id}`, { method: 'DELETE' });
+        await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
         fetchDirectory();
         if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); // Update dynamic counter
     }
@@ -439,7 +439,7 @@ window.deleteUser = async function(id) {
 window.fetchPayrollHistory = async function() {
     const tbody = document.getElementById('payrollTable');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/payroll');
+    const res = await fetch('/api/admin/payroll');
     const result = await res.json();
     tbody.innerHTML = '';
     result.data.forEach(p => {
@@ -476,7 +476,7 @@ window.executePayroll = async function() {
     
     const user = JSON.parse(localStorage.getItem('pentagonUser'));
     try {
-        const res = await fetch('http://localhost:5000/api/admin/payroll/execute', {
+        const res = await fetch('/api/admin/payroll/execute', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ adminName: user.name })
         });
@@ -502,7 +502,7 @@ window.executePayroll = async function() {
 window.fetchBiometricEmployees = async function() {
     const tbody = document.getElementById('biometricTable');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/users');
+    const res = await fetch('/api/admin/users');
     const result = await res.json();
     tbody.innerHTML = '';
     result.data.forEach(u => {
@@ -515,7 +515,7 @@ window.fetchBiometricEmployees = async function() {
 window.fetchApplicants = async function() {
     const tbody = document.getElementById('atsTable');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/applicants');
+    const res = await fetch('/api/admin/applicants');
     const result = await res.json();
     tbody.innerHTML = '';
     if(result.data.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center">No applicants found.</td></tr>';
@@ -540,7 +540,7 @@ window.submitApplication = async function(e) {
             resume_data: base64Data
         };
         try {
-            await fetch('http://localhost:5000/api/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            await fetch('/api/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             alert("✅ Application Submitted! Our HR team will review your resume and contact you at " + data.email);
             e.target.reset();
         } catch (err) { alert("Server Error uploading application."); }
@@ -550,7 +550,7 @@ window.submitApplication = async function(e) {
 
 window.viewResume = async function(appId) {
     try {
-        const res = await fetch(`http://localhost:5000/api/admin/resume/${appId}`);
+        const res = await fetch(`/api/admin/resume/${appId}`);
         const result = await res.json();
         if(result.success && result.data) {
             const viewer = window.open('', '_blank');
@@ -567,7 +567,7 @@ window.viewResume = async function(appId) {
 window.fetchTickets = async function() {
     const tbody = document.getElementById('ticketTable');
     if(!tbody) return;
-    const res = await fetch('http://localhost:5000/api/admin/tickets');
+    const res = await fetch('/api/admin/tickets');
     const result = await res.json();
     tbody.innerHTML = '';
     if(result.data.length === 0) tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-500">No open requests.</td></tr>';
@@ -579,7 +579,7 @@ window.fetchTickets = async function() {
 };
 
 window.resolveTicket = async function(id) {
-    await fetch('http://localhost:5000/api/admin/tickets/resolve', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+    await fetch('/api/admin/tickets/resolve', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
     fetchTickets();
 };
 

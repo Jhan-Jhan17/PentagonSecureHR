@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // Add this line
 require('dotenv').config();
 
 const db = require('./database');
@@ -7,8 +8,18 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); 
+app.use(express.json({ limit: '10mb' }));
 
+// ADD THESE TWO BLOCKS:
+// 1. Tell Express where your HTML/CSS/JS files are
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+// 2. Make the root URL automatically load the login page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
+// ... Keep the rest of your api routes below (app.post('/api/login', etc.))
 app.post('/api/login', (req, res) => {
     const { userId, password, role } = req.body;
     if (role === 'applicant') {
@@ -28,7 +39,7 @@ app.post('/api/admin/tickets/resolve', (req, res) => db.run(`UPDATE support_tick
 
 app.post('/api/apply', (req, res) => {
     const date = new Date().toLocaleDateString();
-    db.run(`INSERT INTO applications (applicant_name, role_applied, contact_email, resume_filename, resume_data, applied_date) VALUES (?, ?, ?, ?, ?, ?)`, 
+    db.run(`INSERT INTO applications (applicant_name, role_applied, contact_email, resume_filename, resume_data, applied_date) VALUES (?, ?, ?, ?, ?, ?)`,
     [req.body.name, req.body.role, req.body.email, req.body.resume_filename, req.body.resume_data, date], (err) => {
         if (err) console.error(err);
         res.json({ success: !err });
@@ -100,7 +111,7 @@ app.post('/api/admin/payroll/execute', (req, res) => {
 
         const query = `
             SELECT u.id, u.basic_pay,
-                   (SELECT COUNT(*) FROM attendance a WHERE a.user_id = u.id AND a.status = 'Clocked Out') as completed_shifts
+                (SELECT COUNT(*) FROM attendance a WHERE a.user_id = u.id AND a.status = 'Clocked Out') as completed_shifts
             FROM users u WHERE u.role = 'employee'
         `;
 
@@ -109,8 +120,8 @@ app.post('/api/admin/payroll/execute', (req, res) => {
 
             let totalAmount = 0;
             employees.forEach(emp => {
-                const hourlyRate = (emp.basic_pay || 45000) / 160; 
-                const hoursWorked = (emp.completed_shifts || 0) * 8; 
+                const hourlyRate = (emp.basic_pay || 45000) / 160;
+                const hoursWorked = (emp.completed_shifts || 0) * 8;
                 totalAmount += (hourlyRate * hoursWorked);
             });
 

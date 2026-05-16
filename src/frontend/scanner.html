@@ -77,7 +77,7 @@
 
                         const distance = faceapi.euclideanDistance(referenceDetection.descriptor, liveDetection.descriptor);
                         if (distance < 0.6) {
-                            const res = await fetch('http://localhost:5000/api/clock-in', {
+                            const res = await fetch('/api/clock-in', {
                                 method: 'POST', headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({ id: id, timestamp: new Date().toISOString(), location: "Lobby Kiosk" })
                             });

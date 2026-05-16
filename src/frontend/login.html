@@ -121,7 +121,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:5000/api/login', {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, password, role })
@@ -135,11 +135,11 @@
                     if (result.user.role === 'admin') {
                         window.location.href = 'admin.html';
                     } else {
-                        window.location.href = 'index.html'; 
+                        window.location.href = 'index.html';
                     }
                 } else {
                     alert("ACCESS DENIED: " + (result.message || "Invalid Credentials"));
-                    document.getElementById('password').value = ''; 
+                    document.getElementById('password').value = '';
                 }
             } catch (error) {
                 alert("Connection to authentication server failed. Is the backend running?");
@@ -149,7 +149,7 @@
         async function handleTicket(type) {
             const msg = prompt(`PENTAGON ${type.toUpperCase()}:\n\nPlease enter your ID and describe the issue:`);
             if (msg) {
-                await fetch('http://localhost:5000/api/tickets', {
+                await fetch('/api/tickets)', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: type, details: msg })
                 });
