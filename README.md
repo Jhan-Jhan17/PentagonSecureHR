@@ -1,35 +1,20 @@
-SecureHR - Enterprise Grade HR & Biometric Management System
+SecureHR - Production Deployment & Clean-Slate Installation Guide
 
-SecureHR is a robust, containerized, and enterprise-hardened Human Resource Management platform engineered with a strict Python-powered architecture. Migrated away from legacy Node.js/SQLite setups, this production-ready application leverages a Flask-SQLAlchemy core, local PostgreSQL engine replication, an Nginx reverse-proxy gateway, a hardened UFW firewall lockdown configuration, and modular Docker microservice containerization.
+This document serves as the complete, step-by-step technical manual for deploying the **SecureHR** enterprise platform on a fresh, clean-slate Linux environment. This guide covers core environment provisioning, database isolation, microservice containerization, reverse-proxy gateway routing, and perimeter network hardening.
 
-🏗️ System Architecture & Production Stack
-The infrastructure deployment is segmented into highly isolated layers to prevent single-point-of-failure vulnerabilities and protect sensitive employee data:
 
-Application Layer: Python 3.12 / Flask REST API served via Gunicorn WSGI production workers.
-Database Layer: Enterprise-grade PostgreSQL relational management system (`securehr_db`).
-Gateway Proxy: Nginx reverse proxy configuring public web requests on Port 80 and piping traffic internally to Port 5000 with custom transmission constraints.
+🏗️ 1. Infrastructure Architecture Overview
+The platform utilizes an enterprise-hardened multi-tier architecture to decouple computational workloads from persistent data storage layers while protecting the public edge interface:
+
+Application Tier: Python 3.12 / Flask REST API served via Gunicorn WSGI production workers inside an isolated container.
+Database Tier: Enterprise-grade local PostgreSQL relational management system cluster (`securehr_db`).
+Gateway Layer: Nginx reverse proxy configuring public web requests on Port 80 and piping traffic internally to Port 5000 with custom transmission constraints.
 Network Perimeter Hardening: UFW (Uncomplicated Firewall) configured to strictly drop all non-essential ingress probes, restricting operational access explicitly to standard web (80/tcp) and management infrastructure (22/tcp).
-Orchestration / Modular Isolation: Docker Linux Engine packaging execution sandboxes via unified host adapter bindings (`--network="host"`).
 
----
+🚀 2. Step-by-Step Installation Procedure
 
-📁 Repository Structure
-```text
-PentagonSecureHR/
-├── .gitignore               # Configured to protect virtual environments and sensitive credentials
-├── README.md                # Project deployment documentation
-└── src/
-    ├── backend/
-    │   ├── app.py           # Core Flask API pipeline serving data models and front-end endpoints
-    │   ├── requirements.txt # Tracked Python execution package dependencies
-    │   └── Dockerfile       # Instruction set packaging the containerized execution context
-    └── frontend/
-        ├── assets/          # Static enterprise asset registries
-        │   ├── faces/       # High-resolution JPEG biometric face mapping parameters
-        │   └── img/         # Standard layout elements (e.g., pentagon.png logo tracking)
-        ├── js/
-        │   └── app.js       # Client-side interface state management framework
-        ├── admin.html       # Administrative operations panel
-        ├── index.html       # Public authentication landing directory
-        ├── login.html       # Secure identity access login terminal
-        └── scanner.html     # Biometric face scanning verification portal
+Step 2.1: Base Environment Provisioning
+Log into your fresh Linux Virtual Machine terminal. Update the core system packages index registries and download the foundational compilation utilities, engines, and system dependencies:
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git ufw nginx postgresql postgresql-contrib docker.io libpq-dev python3-dev gcc curl lsof
