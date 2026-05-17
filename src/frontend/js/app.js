@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAttendanceState(clockInBtn, savedState || 'Pending');
 
         clockInBtn.addEventListener('click', () => {
-            if(clockInBtn.disabled) return; 
+            if(clockInBtn.disabled) return;
             document.getElementById('faceModal').classList.remove('hidden');
             startFaceScan(user);
         });

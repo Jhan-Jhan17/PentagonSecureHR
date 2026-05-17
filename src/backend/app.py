@@ -7,11 +7,9 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 
 app = Flask(__name__)
 
-# 1. Enterprise Security & Payload Rules
 CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB payload limit for base64 biometric face captures
 
-# Required for Identity and Access Management (IAM) token logic
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'pentagon_secure_secret_string_123')
 jwt = JWTManager(app)
 
