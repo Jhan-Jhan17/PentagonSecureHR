@@ -17,9 +17,9 @@ window.switchView = function(viewId, title) {
 
     const user = JSON.parse(localStorage.getItem('pentagonUser'));
 
-    if (viewId === 'dashboard' && document.getElementById('ticketTable')) { 
-        fetchTickets(); 
-        fetchWorkforceCount(); 
+    if (viewId === 'dashboard' && document.getElementById('ticketTable')) {
+        fetchTickets();
+        fetchWorkforceCount();
     }
     if (viewId === 'directory') fetchDirectory();
     if (viewId === 'time') { if (user && user.role !== 'admin') fetchEmployeeDTR(); }
@@ -89,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const resetBtn = document.createElement('button');
         resetBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-2"></i> DEV TOOL: Reset My Attendance';
-        resetBtn.className = 'w-full mt-3 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 py-2 font-bold text-xs rounded transition-colors';
+        // Change this line to include the 'hidden' utility class:
+        resetBtn.className = 'hidden w-full mt-3 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 py-2 font-bold text-xs rounded transition-colors';
         resetBtn.onclick = async () => {
             localStorage.removeItem(`attendance_${user.id}_${today}`);
             try {
