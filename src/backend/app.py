@@ -426,14 +426,20 @@ def dev_reset():
     except Exception: return jsonify({"success": False})
 
 with app.app_context():
-    db.create_all()
-    if not User.query.get('ADMIN-01'):
-        admin = User(id='ADMIN-01', password='admin123', name='System Admin', role='admin', department='Human Resources', position='HR Director', basic_pay=65000.0)
-        db.session.add(admin)
-    if not User.query.get('EMP-01'):
-        emp = User(id='EMP-01', password='emp123', name='First Employee', role='employee', department='Development', position='Software Engineer', basic_pay=48500.0)
-        db.session.add(emp)
-    db.session.commit()
+    try:
+        db.create_all()
+        # Seeds default credentials securely without destroying active profiles
+        if not User.query.get('ADMIN-01'):
+            admin = User(id='ADMIN-01', password='admin123', name='System Admin', role='admin', department='Human Resources', position='HR Director', basic_pay=65000.0)
+            db.session.add(admin)
+        if not User.query.get('EMP-01'):
+            emp = User(id='EMP-01', password='emp123', name='First Employee', role='employee', department='Development', position='Software Engineer', basic_pay=48500.0)
+            db.session.add(emp)
+        db.session.commit()
+    except Exception as e:
+        # Prevents cloned Gunicorn workers from crashing the server if they lose the table-creation race
+        print("Database initialization bypassed (Worker Race Condition):", e)
+        db.session.rollback()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
