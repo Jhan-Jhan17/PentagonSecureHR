@@ -12,7 +12,7 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'pentagon_secure_secret_string_123')
 jwt = JWTManager(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin123@172.17.0.1:5432/securehr_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin123@localhost:5432/securehr_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
