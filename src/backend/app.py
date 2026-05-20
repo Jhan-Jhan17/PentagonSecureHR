@@ -203,11 +203,23 @@ def clock_in():
     if not user: return jsonify({"success": False, "message": "Unrecognized ID"}), 401
 
     date_prefix = timestamp.split('T')[0]
-    count = Attendance.query.filter(Attendance.user_id == user_id, Attendance.timestamp.like(f"{date_prefix}%")).count()
     
-    if count >= 2: return jsonify({"success": False, "message": "Shift completed for today."}), 400
-        
-    new_status = 'Clocked Out' if count == 1 else 'Clocked In'
+    # SENIOR DEV FIX: Look at the EXACT last state of the user for today, rather than just counting total rows.
+    last_log = Attendance.query.filter(
+        Attendance.user_id == user_id, 
+        Attendance.timestamp.like(f"{date_prefix}%")
+    ).order_by(Attendance.log_id.desc()).first()
+    
+    if last_log:
+        if last_log.status == 'Clocked In':
+            new_status = 'Clocked Out'
+        elif last_log.status == 'Clocked Out':
+            return jsonify({"success": False, "message": "Shift completed for today."}), 400
+        else:
+            new_status = 'Clocked In' # Failsafe
+    else:
+        new_status = 'Clocked In'
+
     try:
         log = Attendance(user_id=user_id, timestamp=timestamp, location=location, status=new_status)
         db.session.add(log)
@@ -215,7 +227,7 @@ def clock_in():
         return jsonify({"success": True, "name": user.name, "status": new_status}), 200
     except Exception:
         return jsonify({"success": False}), 500
-
+        
 @app.route('/api/upload', methods=['POST'])
 def upload_document():
     data = request.json or {}

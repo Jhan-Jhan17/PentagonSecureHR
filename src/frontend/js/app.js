@@ -210,11 +210,13 @@ window.startFaceScan = async function(user) {
         video.onplaying = async () => {
             scanLine.classList.remove('hidden');
             let hasBlinked = false;
+            let isProcessing = false; // <-- THE NEW SECURITY LOCK
             statusBox.innerHTML = '<i class="fa-solid fa-eye mr-2 text-yellow-600"></i> Liveness Check: Please BLINK to verify.';
             
-            // [FEATURE 1] LIVENESS POLLING LOOP
             let scanInterval = setInterval(async () => {
-                if(!videoStream) { clearInterval(scanInterval); return; }
+                // If stream drops OR we are already processing a scan, completely freeze the loop
+                if(!videoStream || isProcessing) return; 
+
                 const liveDetection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
                 
                 if (liveDetection) {
@@ -222,10 +224,11 @@ window.startFaceScan = async function(user) {
                     const rightEye = liveDetection.landmarks.getRightEye();
                     const ear = (calculateEAR(leftEye) + calculateEAR(rightEye)) / 2;
                     
-                    // Threshold: If EAR drops below 0.25, eyes are closed (blink registered)
                     if (ear < 0.25) hasBlinked = true;
 
-                    if (hasBlinked) {
+                    // Only execute if they blinked AND we haven't locked the system yet
+                    if (hasBlinked && !isProcessing) {
+                        isProcessing = true; // <-- ENGAGE THE LOCK IMMEDIATELY
                         clearInterval(scanInterval);
                         statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Liveness Confirmed. Verifying Biometrics...';
                         
@@ -261,7 +264,7 @@ window.startFaceScan = async function(user) {
                         }
                     }
                 }
-            }, 100); // Scans 10 times a second waiting for the blink
+            }, 100);
         };
     } catch (err) {
         statusBox.className = 'mt-6 p-3 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
