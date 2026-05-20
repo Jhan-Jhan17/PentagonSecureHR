@@ -18,8 +18,7 @@ window.switchView = function(viewId, title) {
     const user = JSON.parse(localStorage.getItem('pentagonUser'));
 
     if (viewId === 'dashboard' && document.getElementById('ticketTable')) {
-        fetchTickets();
-        fetchWorkforceCount();
+        fetchTickets(); fetchWorkforceCount();
     }
     if (viewId === 'directory') fetchDirectory();
     if (viewId === 'time') { if (user && user.role !== 'admin') fetchEmployeeDTR(); }
@@ -28,7 +27,7 @@ window.switchView = function(viewId, title) {
     if (viewId === 'pay') { if (user && user.role === 'admin') { fetchPayrollHistory(); checkPayrollLock(); } }
     if (viewId === 'payroll') { if (user && user.role !== 'admin') fetchEmployeePayslips(); }
     if (viewId === 'profile') loadProfileData();
-    if (viewId === 'sec') fetchBiometricEmployees();
+    if (viewId === 'sec') { fetchBiometricEmployees(); fetchSecurityAuditLogs(); }
     if (viewId === 'rec') fetchApplicants();
 };
 
@@ -68,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
             loadUserDocuments(user.id);
         }
     } else if (user && window.location.pathname.includes('admin.html')) {
-        // Ensure Admin Name & Initials populate perfectly on admin.html
         document.querySelectorAll('.display-name').forEach(el => el.textContent = user.name);
         if (user.name) {
             const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -89,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const resetBtn = document.createElement('button');
         resetBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-2"></i> DEV TOOL: Reset My Attendance';
-        // Change this line to include the 'hidden' utility class:
         resetBtn.className = 'hidden w-full mt-3 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 py-2 font-bold text-xs rounded transition-colors';
         resetBtn.onclick = async () => {
             localStorage.removeItem(`attendance_${user.id}_${today}`);
@@ -98,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id: user.id })
                 });
-                alert("Test records wiped! The page will now refresh so you can test the scanner again.");
+                alert("Test records wiped! The page will now refresh.");
                 window.location.reload();
             } catch(e) { alert("Server error connecting to reset endpoint."); }
         };
@@ -108,13 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('auditTrail')) {
         if (typeof fetchTickets === 'function') fetchTickets();
         if (typeof fetchWorkforceCount === 'function') fetchWorkforceCount();
-        fetchAdminLogs();
-        fetchPendingLeaves();
-        fetchDirectory(); 
+        fetchAdminLogs(); fetchPendingLeaves(); fetchDirectory(); 
     }
 });
 
-// --- NEW DYNAMIC WORKFORCE COUNTER ---
 window.fetchWorkforceCount = async function() {
     const countEl = document.getElementById('totalWorkforceCount');
     if(!countEl) return;
@@ -176,6 +170,14 @@ window.fetchEmployeePayslips = async function() {
     });
 };
 
+// [FEATURE 1] EYE ASPECT RATIO (EAR) CALCULATION FOR BLINK LIVENESS
+function calculateEAR(eye) {
+    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+    return (v1 + v2) / (2.0 * h);
+}
+
 window.startFaceScan = async function(user) {
     const video = document.getElementById('webcam');
     const statusBox = document.getElementById('faceStatusBox');
@@ -193,70 +195,73 @@ window.startFaceScan = async function(user) {
         ]);
 
         statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching your security profile...';
-
         let referenceImage;
         try { referenceImage = await faceapi.fetchImage(`./assets/faces/${user.id}.jpg`); } 
         catch (e) { throw new Error(`Biometric data not enrolled. HR must upload ${user.id}.jpg to the system.`); }
 
         const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
-
         if (!referenceDetection) throw new Error("Could not detect a clear face in your HR reference photo. Please retake it.");
         const referenceDescriptor = referenceDetection.descriptor;
 
         statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Initializing Camera...';
-
         videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         video.srcObject = videoStream;
         
         video.onplaying = async () => {
             scanLine.classList.remove('hidden');
-            statusBox.innerHTML = '<i class="fa-solid fa-fingerprint mr-2"></i> Mapping live facial topology... Hold still.';
+            let hasBlinked = false;
+            statusBox.innerHTML = '<i class="fa-solid fa-eye mr-2 text-yellow-600"></i> Liveness Check: Please BLINK to verify.';
             
-            setTimeout(async () => {
-                statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifying biometrics...';
-                
+            // [FEATURE 1] LIVENESS POLLING LOOP
+            let scanInterval = setInterval(async () => {
+                if(!videoStream) { clearInterval(scanInterval); return; }
                 const liveDetection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+                
+                if (liveDetection) {
+                    const leftEye = liveDetection.landmarks.getLeftEye();
+                    const rightEye = liveDetection.landmarks.getRightEye();
+                    const ear = (calculateEAR(leftEye) + calculateEAR(rightEye)) / 2;
+                    
+                    // Threshold: If EAR drops below 0.25, eyes are closed (blink registered)
+                    if (ear < 0.25) hasBlinked = true;
 
-                if (!liveDetection) {
-                    scanLine.classList.add('hidden');
-                    statusBox.className = 'mt-6 p-3 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
-                    statusBox.innerHTML = `❌ No face detected. Please look directly at the camera.`;
-                    setTimeout(closeFaceModal, 3000);
-                    return;
-                }
-
-                const distance = faceapi.euclideanDistance(referenceDescriptor, liveDetection.descriptor);
-                const threshold = 0.6; 
-
-                if (distance < threshold) {
-                    try {
-                        const res = await fetch('/api/clock-in', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ id: user.id, timestamp: new Date().toISOString(), location: "Biometric Kiosk" })
-                        });
-                        const result = await res.json();
+                    if (hasBlinked) {
+                        clearInterval(scanInterval);
+                        statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Liveness Confirmed. Verifying Biometrics...';
                         
-                        if (result.success) {
+                        const distance = faceapi.euclideanDistance(referenceDescriptor, liveDetection.descriptor);
+                        const threshold = 0.6;
+
+                        if (distance < threshold) {
+                            try {
+                                const res = await fetch('/api/clock-in', {
+                                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({ id: user.id, timestamp: new Date().toISOString(), location: "Biometric Kiosk" })
+                                });
+                                const result = await res.json();
+                                if (result.success) {
+                                    scanLine.classList.add('hidden');
+                                    statusBox.className = 'mt-6 p-3 rounded font-bold text-green-800 bg-green-100 text-sm border border-green-300';
+                                    const confidence = ((1 - distance) * 100).toFixed(1);
+                                    statusBox.innerHTML = `✅ IDENTITY VERIFIED: ${result.name}<br>Match Confidence: ${confidence}%<br>${result.status} Logged.`;
+                                    
+                                    updateAttendanceState(document.getElementById('clockInBtn'), result.status);
+                                    localStorage.setItem(`attendance_${user.id}_${new Date().toLocaleDateString()}`, result.status);
+                                    setTimeout(closeFaceModal, 3500); 
+                                } else { throw new Error(result.message); }
+                            } catch (e) { 
+                                statusBox.innerHTML = `❌ Server Error: ${e.message}`;
+                                setTimeout(closeFaceModal, 3000);
+                            }
+                        } else {
                             scanLine.classList.add('hidden');
-                            statusBox.className = 'mt-6 p-3 rounded font-bold text-green-800 bg-green-100 text-sm border border-green-300';
-                            const confidence = ((1 - distance) * 100).toFixed(1);
-                            statusBox.innerHTML = `✅ IDENTITY VERIFIED: ${result.name}<br>Match Confidence: ${confidence}%<br>${result.status} Logged.`;
-                            
-                            updateAttendanceState(document.getElementById('clockInBtn'), result.status);
-                            localStorage.setItem(`attendance_${user.id}_${new Date().toLocaleDateString()}`, result.status);
-                            setTimeout(closeFaceModal, 3500); 
-                        } else { throw new Error(result.message); }
-                    } catch (e) { 
-                        statusBox.innerHTML = `❌ Server Error: ${e.message}`;
-                        setTimeout(closeFaceModal, 3000);
+                            statusBox.className = 'mt-6 p-3 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
+                            statusBox.innerHTML = `❌ ACCESS DENIED: Face Mismatch.<br>Unrecognized biometrics detected.`;
+                            setTimeout(closeFaceModal, 4000);
+                        }
                     }
-                } else {
-                    scanLine.classList.add('hidden');
-                    statusBox.className = 'mt-6 p-3 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
-                    statusBox.innerHTML = `❌ ACCESS DENIED: Face Mismatch.<br>Unrecognized biometrics detected.`;
-                    setTimeout(closeFaceModal, 4000);
                 }
-            }, 2000);
+            }, 100); // Scans 10 times a second waiting for the blink
         };
     } catch (err) {
         statusBox.className = 'mt-6 p-3 rounded font-bold text-red-800 bg-red-100 text-sm border border-red-300';
@@ -299,8 +304,7 @@ function updateAttendanceState(btn, status) {
 
 window.triggerUpload = function(docType) {
     const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.pdf,.jpg,.png';
+    fileInput.type = 'file'; fileInput.accept = '.pdf,.jpg,.png';
     fileInput.onchange = async e => {
         const file = e.target.files[0];
         if(!file) return;
@@ -352,8 +356,7 @@ window.printPayslip = function(month) {
         <h2>NET PAY: ₱45,230.00</h2>
         </body></html>
     `);
-    printWindow.document.close();
-    printWindow.print();
+    printWindow.document.close(); printWindow.print();
 };
 
 window.fetchAdminLogs = async function() {
@@ -381,8 +384,13 @@ window.fetchPendingLeaves = async function() {
     });
 };
 
+// [FEATURE 3] MODIFIED TO PASS ADMIN ID TO THE AUDIT LOGGER
 window.reviewLeave = async function(id, action) {
-    await fetch('/api/admin/leaves/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ leave_id: id, action }) });
+    const user = JSON.parse(localStorage.getItem('pentagonUser'));
+    await fetch('/api/admin/leaves/action', { 
+        method: 'POST', headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ leave_id: id, action: action, admin_id: user.id }) 
+    });
     document.getElementById(`leave-${id}`).remove();
     if(document.getElementById('leaveQueue').children.length === 0) fetchPendingLeaves();
 };
@@ -402,8 +410,7 @@ window.submitLeave = async function(e) {
         const result = await res.json();
         if(result.success) {
             alert(`✅ SUCCESS: Your request for ${leaveDays} day(s) of ${leaveType} has been submitted securely to HR.`);
-            e.target.reset();
-            fetchEmployeeLeaves();
+            e.target.reset(); fetchEmployeeLeaves();
         } else { alert("Database Error: Could not submit leave."); }
     } catch(err) { alert("Server Offline: Could not reach HR database."); }
 };
@@ -425,7 +432,7 @@ window.addUser = async function(e) {
     await fetch('/api/admin/users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
     document.getElementById('addEmpForm').reset();
     fetchDirectory();
-    if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); // Update dynamic counter
+    if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); 
     alert(`✅ New account successfully created!\n\nSend these credentials to the user:\nID / Username: ${data.id}\nPassword: ${data.password}`);
 };
 
@@ -433,7 +440,7 @@ window.deleteUser = async function(id) {
     if(confirm(`WARNING: Terminate ID: ${id}?`)) {
         await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
         fetchDirectory();
-        if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); // Update dynamic counter
+        if(document.getElementById('totalWorkforceCount')) fetchWorkforceCount(); 
     }
 };
 
@@ -472,7 +479,7 @@ window.checkPayrollLock = function() {
 
 window.executePayroll = async function() {
     const btn = document.getElementById('executePayrollBtn');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CALCULATING...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CALCULATING DEDUCTIONS...';
     btn.disabled = true;
     
     const user = JSON.parse(localStorage.getItem('pentagonUser'));
@@ -495,8 +502,7 @@ window.executePayroll = async function() {
             checkPayrollLock();
         }
     } catch(err) {
-        alert("Server Offline.");
-        checkPayrollLock(); 
+        alert("Server Offline."); checkPayrollLock(); 
     }
 };
 
@@ -510,6 +516,20 @@ window.fetchBiometricEmployees = async function() {
         if(u.role === 'employee') {
             tbody.innerHTML += `<tr class="border-b hover:bg-gray-50"><td class="py-3 px-4 font-mono text-xs">${u.id}</td><td class="py-3 px-4 font-bold">${u.name}</td><td class="py-3 px-4 text-right"><span class="bg-green-100 text-green-800 font-bold text-xs px-2 py-1 rounded"><i class="fa-solid fa-check-circle mr-1"></i> ENROLLED</span></td></tr>`;
         }
+    });
+};
+
+// [FEATURE 2] FETCH AUDIT LOGS FOR THE FRONTEND
+window.fetchSecurityAuditLogs = async function() {
+    const tbody = document.getElementById('securityAuditTable');
+    if(!tbody) return;
+    const res = await fetch('/api/admin/audit-logs');
+    const result = await res.json();
+    tbody.innerHTML = '';
+    if (result.data.length === 0) return tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">No admin actions logged yet.</td></tr>';
+    result.data.forEach(log => {
+        const dateObj = new Date(log.timestamp);
+        tbody.innerHTML += `<tr class="border-b hover:bg-gray-50"><td class="py-3 px-4 text-xs">${dateObj.toLocaleString()}</td><td class="py-3 px-4 font-mono text-xs font-bold text-blue-800">${log.admin_id}</td><td class="py-3 px-4 text-xs uppercase text-red-600 font-bold">${log.action}</td><td class="py-3 px-4 text-right text-xs text-gray-500">Target: ${log.target}</td></tr>`;
     });
 };
 
@@ -533,13 +553,7 @@ window.submitApplication = async function(e) {
     const reader = new FileReader();
     reader.onload = async function(event) {
         const base64Data = event.target.result;
-        const data = {
-            name: document.getElementById('appName').value,
-            email: document.getElementById('appEmail').value,
-            role: document.getElementById('appRole').value,
-            resume_filename: resumeInput.name,
-            resume_data: base64Data
-        };
+        const data = { name: document.getElementById('appName').value, email: document.getElementById('appEmail').value, role: document.getElementById('appRole').value, resume_filename: resumeInput.name, resume_data: base64Data };
         try {
             await fetch('/api/apply', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             alert("✅ Application Submitted! Our HR team will review your resume and contact you at " + data.email);
@@ -555,12 +569,7 @@ window.viewResume = async function(appId) {
         const result = await res.json();
         if(result.success && result.data) {
             const viewer = window.open('', '_blank');
-            viewer.document.write(`
-                <html><head><title>Resume Viewer - ${result.filename}</title></head>
-                <body style="margin:0; padding:0; overflow:hidden;">
-                    <iframe src="${result.data}" width="100%" height="100%" style="border:none;"></iframe>
-                </body></html>
-            `);
+            viewer.document.write(`<html><head><title>Resume Viewer - ${result.filename}</title></head><body style="margin:0; padding:0; overflow:hidden;"><iframe src="${result.data}" width="100%" height="100%" style="border:none;"></iframe></body></html>`);
         } else { alert("No valid resume file found for this applicant."); }
     } catch(e) { alert("Error retrieving resume from database."); }
 };

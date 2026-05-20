@@ -102,7 +102,7 @@
             <div id="view-att" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-corporate-panel border rounded shadow-sm h-fit">
                     <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
-                        <h3 class="font-bold text-sm uppercase">Live Audit Trail</h3>
+                        <h3 class="font-bold text-sm uppercase">Live Attendance Log</h3>
                         <button onclick="fetchAdminLogs()" class="text-xs text-blue-600 font-bold hover:underline">Refresh</button>
                     </div>
                     <table class="w-full text-sm text-left"><tbody id="auditTrail"></tbody></table>
@@ -153,21 +153,34 @@
                 </div>
             </div>
 
-            <div id="view-sec" class="view-section hidden">
-                <div class="bg-corporate-panel border rounded shadow-sm max-w-4xl">
+            <div id="view-sec" class="view-section hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-corporate-panel border rounded shadow-sm">
                     <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
                         <div>
                             <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-fingerprint mr-2"></i> Biometric Data Enrollment</h3>
-                            <p class="text-xs text-gray-500 mt-1">Review active employees registered for facial recognition sign-in at the terminal.</p>
                         </div>
-                        <button onclick="fetchBiometricEmployees()" class="text-xs font-bold text-blue-600 hover:underline">Refresh List</button>
+                        <button onclick="fetchBiometricEmployees()" class="text-xs font-bold text-blue-600 hover:underline">Refresh</button>
                     </div>
                     <table class="w-full text-sm text-left">
                         <thead class="bg-gray-100 text-xs text-gray-500 uppercase">
                             <tr><th class="px-4 py-2">Emp ID</th><th class="px-4 py-2">Employee Name</th><th class="px-4 py-2 text-right">Verification Status</th></tr>
                         </thead>
-                        <tbody id="biometricTable">
-                        </tbody>
+                        <tbody id="biometricTable"></tbody>
+                    </table>
+                </div>
+
+                <div class="bg-corporate-panel border rounded shadow-sm">
+                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between">
+                        <div>
+                            <h3 class="font-bold text-sm uppercase"><i class="fa-solid fa-shield-halved mr-2"></i> Immutable Audit Trail</h3>
+                        </div>
+                        <button onclick="fetchSecurityAuditLogs()" class="text-xs font-bold text-blue-600 hover:underline">Refresh</button>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-xs text-gray-500 uppercase">
+                            <tr><th class="px-4 py-2">Timestamp</th><th class="px-4 py-2">Admin</th><th class="px-4 py-2">Action</th><th class="px-4 py-2 text-right">Target</th></tr>
+                        </thead>
+                        <tbody id="securityAuditTable"></tbody>
                     </table>
                 </div>
             </div>

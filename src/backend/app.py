@@ -8,17 +8,15 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 app = Flask(__name__)
 
 CORS(app)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB payload limit for base64 biometric face captures
-
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'pentagon_secure_secret_string_123')
 jwt = JWTManager(app)
-
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin123@localhost:5432/securehr_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# --- DATABASE MODELS (Auto-Generates PostgreSQL Schema Elements) ---
+# --- DATABASE MODELS ---
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -34,7 +32,7 @@ class Attendance(db.Model):
     __tablename__ = 'attendance'
     log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
-    timestamp = db.Column(db.String, nullable=False) # Retained string format for frontend ISO string parsing
+    timestamp = db.Column(db.String, nullable=False) 
     location = db.Column(db.String)
     status = db.Column(db.String)
 
@@ -96,7 +94,27 @@ class SupportTicket(db.Model):
     status = db.Column(db.String, default='Open')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# --- APPLICATION ROUTING GATEWAYS (Preserving Exact Feature Logic) ---
+# [FEATURE 2] IMMUTABLE AUDIT TRAIL MODEL
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    audit_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    admin_id = db.Column(db.String, nullable=False)
+    action_type = db.Column(db.String, nullable=False)
+    target_user_id = db.Column(db.String, nullable=False)
+    old_value = db.Column(db.Text)
+    new_value = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+# [FEATURE 2] REUSABLE AUDIT LOGGING FUNCTION
+def log_audit(admin_id, action_type, target_user, old_val, new_val):
+    try:
+        audit = AuditLog(admin_id=admin_id, action_type=action_type, target_user_id=target_user, old_value=str(old_val), new_value=str(new_val))
+        db.session.add(audit)
+        db.session.commit()
+    except Exception as e:
+        print("Audit logging failed:", e)
+
+# --- APPLICATION ROUTING GATEWAYS ---
 
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend'))
 
@@ -116,24 +134,15 @@ def login():
     role = data.get('role')
 
     if role == 'applicant':
-        # Upgraded to issue a legitimate secure access token matching IAM principles
         token = create_access_token(identity={'id': 'PUBLIC', 'role': 'applicant'})
-        return jsonify({
-            "success": True, 
-            "token": token,
-            "user": {"id": "PUBLIC", "name": "Guest Applicant", "role": "applicant"}
-        }), 200
+        return jsonify({"success": True, "token": token, "user": {"id": "PUBLIC", "name": "Guest Applicant", "role": "applicant"}}), 200
 
     user = User.query.filter_by(id=user_id, password=password, role=role).first()
     if user:
         token = create_access_token(identity={'id': user.id, 'role': user.role})
         return jsonify({
-            "success": True, 
-            "token": token,
-            "user": {
-                "id": user.id, "name": user.name, "role": user.role, 
-                "department": user.department, "position": user.position, "basic_pay": user.basic_pay
-            }
+            "success": True, "token": token,
+            "user": {"id": user.id, "name": user.name, "role": user.role, "department": user.department, "position": user.position, "basic_pay": user.basic_pay}
         }), 200
     
     return jsonify({"success": False, "message": "Invalid Credentials"}), 401
@@ -168,13 +177,9 @@ def resolve_ticket():
 @app.route('/api/apply', methods=['POST'])
 def apply():
     data = request.json or {}
-    date_str = datetime.now().strftime('%m/%d/%Y') # Formatted match for standard locales
+    date_str = datetime.now().strftime('%m/%d/%Y')
     try:
-        app_record = Application(
-            applicant_name=data.get('name'), role_applied=data.get('role'),
-            contact_email=data.get('email'), resume_filename=data.get('resume_filename'),
-            resume_data=data.get('resume_data'), applied_date=date_str
-        )
+        app_record = Application(applicant_name=data.get('name'), role_applied=data.get('role'), contact_email=data.get('email'), resume_filename=data.get('resume_filename'), resume_data=data.get('resume_data'), applied_date=date_str)
         db.session.add(app_record)
         db.session.commit()
         return jsonify({"success": True})
@@ -184,8 +189,7 @@ def apply():
 @app.route('/api/admin/resume/<int:id>', methods=['GET'])
 def get_resume(id):
     record = Application.query.get(id)
-    if not record:
-        return jsonify({"success": False}), 404
+    if not record: return jsonify({"success": False}), 404
     return jsonify({"success": True, "data": record.resume_data, "filename": record.resume_filename})
 
 @app.route('/api/clock-in', methods=['POST'])
@@ -196,18 +200,14 @@ def clock_in():
     location = data.get('location')
 
     user = User.query.get(user_id)
-    if not user:
-        return jsonify({"success": False, "message": "Unrecognized ID"}), 401
+    if not user: return jsonify({"success": False, "message": "Unrecognized ID"}), 401
 
     date_prefix = timestamp.split('T')[0]
-    # Retains exact shift completion state rule mapping logic
     count = Attendance.query.filter(Attendance.user_id == user_id, Attendance.timestamp.like(f"{date_prefix}%")).count()
     
-    if count >= 2:
-        return jsonify({"success": False, "message": "Shift completed for today."}), 400
+    if count >= 2: return jsonify({"success": False, "message": "Shift completed for today."}), 400
         
     new_status = 'Clocked Out' if count == 1 else 'Clocked In'
-    
     try:
         log = Attendance(user_id=user_id, timestamp=timestamp, location=location, status=new_status)
         db.session.add(log)
@@ -224,8 +224,7 @@ def upload_document():
         db.session.add(doc)
         db.session.commit()
         return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False})
+    except Exception: return jsonify({"success": False})
 
 @app.route('/api/documents/<id>', methods=['GET'])
 def get_documents(id):
@@ -241,8 +240,7 @@ def request_leave():
         db.session.add(lv)
         db.session.commit()
         return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False})
+    except Exception: return jsonify({"success": False})
 
 @app.route('/api/overtime', methods=['POST'])
 def request_overtime():
@@ -252,8 +250,7 @@ def request_overtime():
         db.session.add(ot)
         db.session.commit()
         return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False})
+    except Exception: return jsonify({"success": False})
 
 @app.route('/api/profile/password', methods=['POST'])
 def update_password():
@@ -289,15 +286,25 @@ def get_admin_leaves():
     data = [{"id": lv.id, "name": usr.name, "type": lv.type, "days": lv.days, "status": lv.status} for lv, usr in records]
     return jsonify({"success": True, "data": data})
 
+# [FEATURE 3] LEAVE APPROVAL INTEGRATED WITH AUDIT LOGS
 @app.route('/api/admin/leaves/action', methods=['POST'])
 def action_leave():
     data = request.json or {}
     lv = Leave.query.get(data.get('leave_id'))
+    admin_id = data.get('admin_id', 'System Admin')
     if lv:
+        old_status = lv.status
         lv.status = data.get('action')
         db.session.commit()
+        log_audit(admin_id, 'RESOLVE_LEAVE', lv.user_id, old_status, lv.status)
         return jsonify({"success": True})
     return jsonify({"success": False})
+
+@app.route('/api/admin/audit-logs', methods=['GET'])
+def get_security_audit_logs():
+    audits = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all()
+    data = [{"timestamp": a.timestamp.isoformat(), "admin_id": a.admin_id, "action": a.action_type, "target": a.target_user_id, "details": f"{a.old_value} -> {a.new_value}"} for a in audits]
+    return jsonify({"success": True, "data": data})
 
 @app.route('/api/admin/stats/workforce', methods=['GET'])
 def get_workforce_stats():
@@ -318,8 +325,7 @@ def add_user():
         db.session.add(user)
         db.session.commit()
         return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False})
+    except Exception: return jsonify({"success": False})
 
 @app.delete('/api/admin/users/<id>')
 def delete_user(id):
@@ -336,12 +342,12 @@ def get_payroll_runs():
     data = [{"id": r.id, "run_date": r.run_date, "total_amount": r.total_amount, "status": r.status, "processed_by": r.processed_by} for r in runs]
     return jsonify({"success": True, "data": data})
 
+# [FEATURE 4] AUTOMATED PAYROLL ENGINE WITH LATE PENALTIES
 @app.route('/api/admin/payroll/execute', methods=['POST'])
 def execute_payroll():
     today = datetime.now()
     day = today.day
 
-    # Retains strict calculation unlock rules window (15th or 30th)
     if day != 15 and day != 30:
         return jsonify({"success": False, "message": "SYSTEM LOCKED: Payroll can only be processed on the 15th or 30th of the month."}), 403
 
@@ -355,11 +361,29 @@ def execute_payroll():
     total_amount = 0.0
 
     for emp in employees:
+        # Step 1: Query raw Clock-In records to check for tardiness
+        attendance_records = Attendance.query.filter_by(user_id=emp.id, status='Clocked In').all()
+        late_penalties = 0.0
+        
+        for att in attendance_records:
+            try:
+                # Isolate the time segment and check if they clocked in past 8:00 AM
+                dt = datetime.fromisoformat(att.timestamp.replace('Z', '+00:00'))
+                if dt.hour >= 8 and dt.minute > 0:
+                    late_penalties += 150.0  # Flat ₱150 penalty per late arrival
+            except: pass
+
+        # Step 2: Calculate basic gross pay
         completed_shifts = Attendance.query.filter_by(user_id=emp.id, status='Clocked Out').count()
         basic_pay = emp.basic_pay or 45000.0
         hourly_rate = basic_pay / 160.0
         hours_worked = completed_shifts * 8.0
-        total_amount += (hourly_rate * hours_worked)
+        gross_pay = (hourly_rate * hours_worked)
+        
+        # Step 3: Apply dynamic deductions
+        net_pay = gross_pay - late_penalties
+        if net_pay < 0: net_pay = 0.0
+        total_amount += net_pay
 
     if total_amount == 0.0:
         return jsonify({"success": False, "message": "Computation Complete: ₱0.00.\nNo employee work hours logged in the database for this period."}), 400
@@ -370,7 +394,7 @@ def execute_payroll():
         db.session.commit()
         
         formatted_money = f"{total_amount:,.2f}"
-        return jsonify({"success": True, "message": f"Payroll successfully computed based on actual logged work hours.\n\nTotal Disbursed: ₱{formatted_money}"})
+        return jsonify({"success": True, "message": f"Payroll successfully computed with Late Deductions applied.\n\nTotal Disbursed: ₱{formatted_money}"})
     except Exception:
         return jsonify({"success": False, "message": "Database transaction failure."}), 500
 
@@ -387,14 +411,10 @@ def dev_reset():
         Attendance.query.filter_by(user_id=user_id).delete()
         db.session.commit()
         return jsonify({"success": True})
-    except Exception:
-        return jsonify({"success": False})
+    except Exception: return jsonify({"success": False})
 
-# --- SEED ROOT ADMIN DATA RETENTION BLOCK ---
 with app.app_context():
-    db.create_all() # Creates your production tables inside PostgreSQL instantly
-    
-    # Seeds default credentials securely without destroying active profiles
+    db.create_all()
     if not User.query.get('ADMIN-01'):
         admin = User(id='ADMIN-01', password='admin123', name='System Admin', role='admin', department='Human Resources', position='HR Director', basic_pay=65000.0)
         db.session.add(admin)
