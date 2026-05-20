@@ -8,11 +8,11 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 app = Flask(__name__)
 
 CORS(app)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'pentagon_secure_secret_string_123')
 jwt = JWTManager(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin123@localhost:5432/securehr_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin123@172.17.0.1:5432/securehr_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -227,7 +227,7 @@ def clock_in():
         return jsonify({"success": True, "name": user.name, "status": new_status}), 200
     except Exception:
         return jsonify({"success": False}), 500
-        
+
 @app.route('/api/upload', methods=['POST'])
 def upload_document():
     data = request.json or {}
